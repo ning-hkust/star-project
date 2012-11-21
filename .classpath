@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
+	<classpathentry kind="lib" path="wala-properties"/>
+	<classpathentry kind="lib" path="yices"/>
+	<classpathentry kind="lib" path="lib/com.ibm.wala.core.jar" sourcepath="D:/Projects/SnuggleBug/wala_trunk/trunk"/>
+	<classpathentry kind="lib" path="lib/com.ibm.wala.core.tests.jar"/>
+	<classpathentry kind="lib" path="lib/com.ibm.wala.shrike.jar" sourcepath="D:/Projects/SnuggleBug/wala_trunk/trunk/com.ibm.wala.shrike"/>
+	<classpathentry kind="lib" path="lib/org.eclipse.core.jobs_3.4.100.v20090429-1800.jar"/>
+	<classpathentry kind="lib" path="lib/org.eclipse.core.resources_3.5.0.v20090512.jar"/>
+	<classpathentry kind="lib" path="lib/org.eclipse.core.runtime_3.5.0.v20090525.jar"/>
+	<classpathentry kind="lib" path="lib/org.eclipse.equinox.common_3.5.0.v20090520-1800.jar"/>
+	<classpathentry kind="lib" path="lib/org.eclipse.osgi_3.5.0.v20090520.jar"/>
+	<classpathentry kind="lib" path="lib/hk.ust.cse.Util.jar" sourcepath="/Util"/>
+	<classpathentry kind="lib" path="lib/hk.ust.cse.WalaUtils.jar" sourcepath="/WalaUtils"/>
+	<classpathentry kind="lib" path="lib/hk.ust.cse.StaticAnalysis.jar" sourcepath="/StaticAnalysis"/>
+	<classpathentry kind="lib" path="lib/hk.ust.cse.YicesWrapper.jar" sourcepath="/YicesWrapper"/>
+	<classpathentry kind="lib" path="lib/hk.ust.cse.Prevision_PseudoImpl.jar" sourcepath="/Prevision_PseudoImpl"/>
+	<classpathentry kind="lib" path="lib/sqlitejdbc-v056.jar"/>
+	<classpathentry kind="lib" path="/Prevision/bin" sourcepath="/Prevision"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
