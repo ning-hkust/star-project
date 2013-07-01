@@ -1,5 +1,5 @@
 #Fat Jar Configuration File
-#Thu Nov 08 02:21:50 CST 2012
+#Tue Jul 02 04:28:35 CST 2013
 onejar.license.required=true
 manifest.classpath=
 manifest.removesigners=true
@@ -10,5 +10,5 @@ manifest.mainclass=
 manifest.file=<createnew>
 jarname.isextern=false
 onejar.expand=
-excludes=<cl|D\:\\Projects\\STAR\\trunk\\wala-properties>;<cl|D\:\\Projects\\STAR\\trunk\\yices>;<cl|D\:\\Projects\\Infrastructure\\Prevision\\bin>;<jar|com.ibm.wala.core.jar>;<jar|com.ibm.wala.core.tests.jar>;<jar|com.ibm.wala.shrike.jar>;<jar|org.eclipse.core.jobs_3.4.100.v20090429-1800.jar>;<jar|org.eclipse.core.resources_3.5.0.v20090512.jar>;<jar|org.eclipse.core.runtime_3.5.0.v20090525.jar>;<jar|org.eclipse.equinox.common_3.5.0.v20090520-1800.jar>;<jar|org.eclipse.osgi_3.5.0.v20090520.jar>;<jar|hk.ust.cse.Util.jar>;<jar|hk.ust.cse.WalaUtils.jar>;<jar|hk.ust.cse.StaticAnalysis.jar>;<jar|hk.ust.cse.YicesWrapper.jar>;<jar|hk.ust.cse.Prevision_PseudoImpl.jar>;<jar|sqlitejdbc-v056.jar>
+excludes=<cl|D\:\\Projects\\STAR\\trunk\\wala-properties>;<cl|D\:\\Projects\\Infrastructure\\Prevision\\bin>;<jar|com.ibm.wala.core.jar>;<jar|com.ibm.wala.core.tests.jar>;<jar|com.ibm.wala.shrike.jar>;<jar|org.eclipse.core.jobs_3.4.100.v20090429-1800.jar>;<jar|org.eclipse.core.resources_3.5.0.v20090512.jar>;<jar|org.eclipse.core.runtime_3.5.0.v20090525.jar>;<jar|org.eclipse.equinox.common_3.5.0.v20090520-1800.jar>;<jar|org.eclipse.osgi_3.5.0.v20090520.jar>;<jar|com.microsoft.z3.jar>;<jar|hk.ust.cse.Util.jar>;<jar|hk.ust.cse.WalaUtils.jar>;<jar|hk.ust.cse.StaticAnalysis.jar>;<jar|hk.ust.cse.Prevision_PseudoImpl.jar>;<jar|sqlitejdbc-v056.jar>
 includes=

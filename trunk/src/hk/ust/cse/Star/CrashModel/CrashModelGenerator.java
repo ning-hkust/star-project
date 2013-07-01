@@ -5,7 +5,6 @@ import hk.ust.cse.Prevision.InstructionHandlers.CompleteBackwardHandler;
 import hk.ust.cse.Prevision.Misc.CallStack;
 import hk.ust.cse.Prevision.Misc.InvalidStackTraceException;
 import hk.ust.cse.Prevision.PathCondition.Formula;
-import hk.ust.cse.Prevision.Solver.AbstractSolverResult;
 import hk.ust.cse.Prevision.Solver.SMTChecker;
 import hk.ust.cse.Prevision.VirtualMachine.CallStackResult;
 import hk.ust.cse.Prevision.VirtualMachine.ExecutionOptions;
@@ -32,23 +31,24 @@ import com.ibm.wala.ssa.IR;
 
 public class CrashModelGenerator {
   
-  static {
-    s_dbName     = "CrashModel";
-    s_tableName1 = "Model";
-  }
-  
   // can only be used to compute for one exception at a time as the target jarFile is different
-  public CrashModelGenerator(String pseudoImplJarFile, String filterMethodFile, int accessibility, int exceptionID) throws Exception {
+  public CrashModelGenerator(String pseudoImplJarFile, String dbName, 
+      String filterMethodFile, int accessibility, int exceptionID) throws Exception {
+    
     m_pseudoImplJarFile = pseudoImplJarFile;
     m_filterMethodFile  = filterMethodFile;
     m_accessibility     = accessibility;
     m_exceptionID       = exceptionID;
+    
+    // crash model database name and table name
+    m_dbName            = dbName;
+    m_tableName         = "Model";
   }
   
   public void generateTable() {
     Connection conn = null;
     try {
-      conn = DbHelperSqlite.openConnection(s_dbName);
+      conn = DbHelperSqlite.openConnection(m_dbName);
 
       // always create a new table
       //createNewTable(conn);
@@ -91,7 +91,10 @@ public class CrashModelGenerator {
     // initialize
     AbstractHandler instHandler = new CompleteBackwardHandler();
     instHandler.setMethodStepInFilters(m_filterMethodFile);
-    SMTChecker smtChecker = new SMTChecker(SMTChecker.SOLVERS.YICES);
+    SMTChecker smtChecker = new SMTChecker(SMTChecker.SOLVERS.Z3);
+    smtChecker.addSatModelProcessor(new UseRangeProcessor());
+    smtChecker.addSatModelProcessor(new LessTypeRestrict());
+    
     m_executor = new BackwardExecutor(appJar, m_pseudoImplJarFile, instHandler, smtChecker);
 
     // load jar file, _removed.jar version is for faster call graph construction. Since it may 
@@ -127,37 +130,15 @@ public class CrashModelGenerator {
       CallStackResult callStackResult = computeCallStack(cs);
       
       // parse each sat-model
-      List<String> modelStrings                 = new ArrayList<String>();
-//      List<String> modelSerializeStrings        = new ArrayList<String>();
-//      List<String> partialModelStrings          = new ArrayList<String>();
-//      List<String> partialModelSerializeStrings = new ArrayList<String>();
-//      List<String> condListStrings              = new ArrayList<String>();
-//      List<String> condListSerializeStrings     = new ArrayList<String>();
-      
+      List<String> modelStrings = new ArrayList<String>();
+
       List<Formula> satisfiables = callStackResult.getSatisfiables();
       for (int k = 0, size3 = satisfiables.size(); k < size3; k++) {
         Formula satisfiable = satisfiables.get(k);
         if (satisfiable != null) {
-          AbstractSolverResult lastSolverResult = satisfiable.getLastSolverResult();
-          
-//          // condition list
-//          condListStrings.add(lastSolverResult.getConditionListString(satisfiable));
-//          
-//          // partial sat-model
-//          partialModelStrings.add(lastSolverResult.getPartialSatModelString(satisfiable));
-          
           // sat-model
-          modelStrings.add(lastSolverResult.getSatModelString(satisfiable));
+          modelStrings.add(satisfiable.getLastSolverResult().convSatModelToString(satisfiable));
 
-//          // condition list
-//          condListSerializeStrings.add(lastSolverResult.getConditionListSerializeString(satisfiable));
-//          
-//          // partial sat-model
-//          partialModelSerializeStrings.add(lastSolverResult.getPartialSatModelSerializeString(satisfiable));
-//          
-//          // sat-model
-//          modelSerializeStrings.add(lastSolverResult.getSatModelSerializeString(satisfiable));
-          
           // manually clear solver data to reduce memory usage
           satisfiable.clearSolverData();
         }
@@ -170,39 +151,30 @@ public class CrashModelGenerator {
       for (int k = 0, size3 = modelStrings.size(); k < size3; k++) {
         StringBuilder modelSqlText = new StringBuilder();
         modelSqlText.append("Insert Into ");
-        modelSqlText.append(s_tableName1);
+        modelSqlText.append(m_tableName);
         modelSqlText.append(" Values (Null, ");
         modelSqlText.append(m_exceptionID);;
         modelSqlText.append(", '");
         modelSqlText.append(cs.toString());
-//        modelSqlText.append("', '");
-//        modelSqlText.append(condListStrings.get(k));
-//        modelSqlText.append("', '");
-//        modelSqlText.append(partialModelStrings.get(k));
         modelSqlText.append("', '");
         modelSqlText.append(modelStrings.get(k));
-//        modelSqlText.append("', '");
-//        modelSqlText.append(condListSerializeStrings.get(k));
-//        modelSqlText.append("', '");
-//        modelSqlText.append(partialModelSerializeStrings.get(k));
-//        modelSqlText.append("', '");
-//        modelSqlText.append(modelSerializeStrings.get(k));
         modelSqlText.append("')");   
         sqlTexts.add(modelSqlText.toString());
       }
       DbHelperSqlite.executeBatch(conn, sqlTexts.toArray(new String[0]));
-      
-      if (sqlTexts.size() == 0) {
-        noModelsList.add(level);
-      }
-      else {
-        haveModelsList.add(level);
-      }
-      
+
       // end time
       long end = System.currentTimeMillis();
       logger.write(". Elapsed time: " + (end - start) + "ms\n");
       logger.flush();
+      
+      if (sqlTexts.size() == 0) {
+        noModelsList.add(level);
+        break; // no need to try the later frames anymore
+      }
+      else {
+        haveModelsList.add(level);
+      }
     }
     
     // output
@@ -271,18 +243,18 @@ public class CrashModelGenerator {
   @SuppressWarnings("unused")
   private void createNewTable(Connection conn) throws Exception {
     // always drop old table first
-    if (DbHelperSqlite.exist(conn, s_tableName1)) {
-      String sqlText = "Drop Table " + s_tableName1;
+    if (DbHelperSqlite.exist(conn, m_tableName)) {
+      String sqlText = "Drop Table " + m_tableName;
       DbHelperSqlite.executeNonQuery(conn, sqlText);
     }
     
     // create new table
-//    String sqlText = "Create Table " + s_tableName1
+//    String sqlText = "Create Table " + m_tableName
 //        + " (id Integer Not Null Primary Key AutoIncrement, ExceptionID Integer Not Null, " +
 //            "CallStack Text Not Null, ConditionsString Text Not Null, PartialModelString Text Not Null, " +
 //            "ModelString Text Not Null, ConditionsObjs Text Not Null, PartialModelObjs Text Not Null, " +
 //            "ModelObjs Text Not Null, FOREIGN KEY(ExceptionID) REFERENCES Exception(id))";
-    String sqlText = "Create Table " + s_tableName1
+    String sqlText = "Create Table " + m_tableName
         + " (id Integer Not Null Primary Key AutoIncrement, ExceptionID Integer Not Null, " +
             "CallStack Text Not Null, ModelString Text Not Null, FOREIGN KEY(ExceptionID) REFERENCES Exception(id))";
     DbHelperSqlite.executeNonQuery(conn, sqlText);
@@ -294,7 +266,6 @@ public class CrashModelGenerator {
     String sqlText = "Select * From Exception Where id = " + m_exceptionID;
     ResultSet rs = DbHelperSqlite.executeQuery(conn, sqlText);
     if (rs.next()) {
-      
       // mandatory fields
       String jarFile          = rs.getString(4);
       String cgBuilder        = rs.getString(5);
@@ -356,8 +327,8 @@ public class CrashModelGenerator {
     List<Formula> satisfiables = new ArrayList<Formula>();
     try {
       // set symbolic execution properties
-      int maxDispTargets  = (m_exception[4] != null) ? (Integer) m_exception[4] : 1;
-      int maxRetrieve     = (m_exception[5] != null) ? (Integer) m_exception[5] : 1000;
+      int maxDispTargets  = (m_exception[4] != null) ? (Integer) m_exception[4] : 2;
+      int maxRetrieve     = (m_exception[5] != null) ? (Integer) m_exception[5] : 10;
       int maxSmtCheck     = (m_exception[6] != null) ? (Integer) m_exception[6] : 1000;
       int maxInvokeDepth  = (m_exception[7] != null) ? (Integer) m_exception[7] : 10;
       int maxLoop         = (m_exception[8] != null) ? (Integer) m_exception[8] : 1;
@@ -370,6 +341,18 @@ public class CrashModelGenerator {
         }
         else if (m_exception[1].equals("ZeroOneCFA")) {
           cgBuilder = CallGraphBuilder.ZeroOneCFA;
+        }
+        else if (m_exception[1].equals("VanillaZeroOneCFA")) {
+          cgBuilder = CallGraphBuilder.VanillaZeroOneCFA;
+        }
+        else if (m_exception[1].equals("ZeroContainerCFA")) {
+          cgBuilder = CallGraphBuilder.ZeroContainerCFA;
+        }
+        else if (m_exception[1].equals("ZeroOneContainerCFA")) {
+          cgBuilder = CallGraphBuilder.ZeroOneContainerCFA;
+        }
+        else if (m_exception[1].equals("VanillaZeroOneContainerCFA")) {
+          cgBuilder = CallGraphBuilder.VanillaZeroOneContainerCFA;
         }
         else if (m_exception[1].equals("None")) {
           cgBuilder = null;
@@ -401,7 +384,7 @@ public class CrashModelGenerator {
       
       execOptions.exceptionType         = excepType;
       execOptions.callGraphBuilder      = cgBuilder;
-//      execOptions.checkOnTheFly         = false; //XXX
+//      execOptions.checkOnTheFly         = false;
 //      execOptions.skipUselessBranches   = false;
 //      execOptions.skipUselessMethods    = false;
 //      execOptions.heuristicBacktrack    = false;
@@ -429,19 +412,20 @@ public class CrashModelGenerator {
   public static void main(String[] args) throws Exception {
     CrashModelGenerator modelGenerator = new CrashModelGenerator(args[0], 
                                                                  args[1], 
-                                                                 Integer.parseInt(args[2]), 
-                                                                 Integer.parseInt(args[3]));
+                                                                 args[2], 
+                                                                 Integer.parseInt(args[3]), 
+                                                                 Integer.parseInt(args[4]));
     modelGenerator.generateTable();
   }
   
-  private static String s_dbName;
-  private static String s_tableName1;
 
   private Object[]         m_exception;
   private BackwardExecutor m_executor;
 
   private final int    m_exceptionID;
   private final int    m_accessibility; /* 0: only public; 1: public + default + protected */
+  private final String m_dbName;
+  private final String m_tableName;
   private final String m_pseudoImplJarFile;
   private final String m_filterMethodFile;
 }
