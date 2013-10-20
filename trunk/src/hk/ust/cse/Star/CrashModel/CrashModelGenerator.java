@@ -398,7 +398,7 @@ public class CrashModelGenerator {
     } catch (Exception e) {
       e.printStackTrace();
     } catch (OutOfMemoryError e) {
-      System.err.println("Run out of memory when computing for this call stack, skip!");
+      System.err.println("Ran out of memory when computing for this call stack, skip!");
     }
     
     // get all satisfiables from executor
@@ -418,7 +418,6 @@ public class CrashModelGenerator {
     modelGenerator.generateTable();
   }
   
-
   private Object[]         m_exception;
   private BackwardExecutor m_executor;
 
